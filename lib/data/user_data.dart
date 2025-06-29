@@ -1,6 +1,7 @@
 import 'package:rositas_appk/models/product.dart';
 
 class UserData {
+  static String id = '';
   static String name = '';
   static String email = '';
   static String password = '';

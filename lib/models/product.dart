@@ -18,8 +18,8 @@ class Product {
   final String? imageUrl;
   final int stockQuantity;
   final bool isActive;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Product({
     required this.id,
@@ -30,8 +30,8 @@ class Product {
     this.imageUrl,
     this.stockQuantity = 0,
     this.isActive = true,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory Product.fromMap(Map<String, dynamic> map) {
