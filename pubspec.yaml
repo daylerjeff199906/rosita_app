@@ -1,0 +1,29 @@
+name: rositas_appk
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  logger: ^2.0.2 # <-- Agregado aquí
+  supabase_flutter: ^2.0.0  # Nueva dependencia para Supabase
+  flutter_dotenv: ^5.1.0    # Para manejar variables de entorno
+  image_picker: ^1.0.4      # Para seleccionar imágenes de perfil
+  cached_network_image: ^3.3.0 # Para manejar imágenes de perfil en cache
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
+    - assets/icono_flower.png
