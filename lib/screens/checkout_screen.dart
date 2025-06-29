@@ -1,4 +1,3 @@
-// checkout_screen.dart
 import 'package:flutter/material.dart';
 import 'package:rositas_appk/models/order.dart';
 import 'package:rositas_appk/screens/order_confirmation_screen.dart';
@@ -21,14 +20,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _expiryController = TextEditingController();
   final _cvvController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _specialInstructionsController = TextEditingController();
 
-  final String _paymentMethod = 'credit_card';
-  final String _shippingType = 'home';
+  String _paymentMethod = 'credit_card';
+  String _shippingType = 'home_delivery';
   bool _isLoading = false;
   bool _loadingUserData = true;
   List<CartItem> _cartItems = [];
 
   final _supabase = Supabase.instance.client;
+
+  final List<Map<String, dynamic>> _paymentMethods = [
+    {
+      'value': 'credit_card',
+      'label': 'Tarjeta de Crédito',
+      'icon': Icons.credit_card,
+    },
+    {
+      'value': 'debit_card',
+      'label': 'Tarjeta de Débito',
+      'icon': Icons.credit_card,
+    },
+    {'value': 'cash', 'label': 'Efectivo al recibir', 'icon': Icons.money},
+    {
+      'value': 'bank_transfer',
+      'label': 'Transferencia Bancaria',
+      'icon': Icons.account_balance,
+    },
+  ];
+
+  final List<Map<String, dynamic>> _shippingOptions = [
+    {'value': 'home_delivery', 'label': 'Envío a domicilio'},
+    {'value': 'pickup', 'label': 'Recojo en tienda'},
+    {'value': 'express', 'label': 'Envío express (24h)'},
+  ];
 
   @override
   void initState() {
@@ -46,6 +71,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _expiryController.dispose();
     _cvvController.dispose();
     _phoneController.dispose();
+    _specialInstructionsController.dispose();
     super.dispose();
   }
 
@@ -75,7 +101,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Obtener carrito desde Supabase
       final cartResponse = await _supabase
           .from('cart_items')
-          .select('*, products(*)')
+          .select('*, product:products(*, category:categories(*))')
           .eq('user_id', userId);
 
       setState(() {
@@ -116,6 +142,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             'payment_method': _paymentMethod,
             'shipping_type': _shippingType,
             'status': 'pending',
+            'special_instructions':
+                _specialInstructionsController.text.isNotEmpty
+                    ? _specialInstructionsController.text
+                    : null,
           }).select();
 
       if (orderResponse.isEmpty) throw Exception('Failed to create order');
@@ -129,6 +159,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'product_id': item.product.id,
           'quantity': item.quantity,
           'unit_price': item.product.price,
+          'product_name': item.product.name,
+          'product_image': item.product.imageUrl,
         });
       }
 
@@ -151,7 +183,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al procesar el pedido: ${e.toString()}')),
+        SnackBar(
+          content: Text('Error al procesar el pedido: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -175,7 +210,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'Finalizar compra',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.pink,
+        backgroundColor: Colors.pink[800],
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Stack(
@@ -189,49 +224,92 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 children: [
                   // Resumen de productos
                   Card(
-                    margin: const EdgeInsets.only(bottom: 16),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Resumen del pedido',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           ..._cartItems.map(
                             (item) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Row(
                                 children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.grey[200],
+                                      child:
+                                          item.product.imageUrl != null
+                                              ? Image.network(
+                                                item.product.imageUrl!,
+                                                fit: BoxFit.cover,
+                                              )
+                                              : const Icon(Icons.image),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
                                   Expanded(
-                                    child: Text(
-                                      '${item.product.name} x${item.quantity}',
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.product.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Cantidad: ${item.quantity}',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   Text(
-                                    '\$${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                                    'S/${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const Divider(),
+                          const Divider(height: 24),
                           Row(
                             children: [
                               const Text(
                                 'Total:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const Spacer(),
                               Text(
-                                '\$${totalAmount.toStringAsFixed(2)}',
+                                'S/${totalAmount.toStringAsFixed(2)}',
                                 style: const TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.pink,
                                 ),
                               ),
                             ],
@@ -241,16 +319,255 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
 
-                  // Resto del formulario de checkout...
-                  // (Mantener el mismo código para los campos de dirección, pago, etc.)
                   const SizedBox(height: 24),
+
+                  // Información de envío
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Información de envío',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildShippingTypeSelector(),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _addressController,
+                            decoration: const InputDecoration(
+                              labelText: 'Dirección',
+                              prefixIcon: Icon(Icons.home),
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor ingrese su dirección';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _cityController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Ciudad',
+                                    prefixIcon: Icon(Icons.location_city),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor ingrese su ciudad';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _zipController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Código Postal',
+                                    prefixIcon: Icon(Icons.markunread_mailbox),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor ingrese su código postal';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _phoneController,
+                            decoration: const InputDecoration(
+                              labelText: 'Teléfono de contacto',
+                              prefixIcon: Icon(Icons.phone),
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor ingrese su teléfono';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _specialInstructionsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Instrucciones especiales (opcional)',
+                              prefixIcon: Icon(Icons.note),
+                              border: OutlineInputBorder(),
+                            ),
+                            maxLines: 3,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Método de pago
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Método de pago',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildPaymentMethodSelector(),
+                          const SizedBox(height: 16),
+                          if (_paymentMethod == 'credit_card' ||
+                              _paymentMethod == 'debit_card')
+                            Column(
+                              children: [
+                                TextFormField(
+                                  controller: _cardNumberController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Número de tarjeta',
+                                    prefixIcon: Icon(Icons.credit_card),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if ((_paymentMethod == 'credit_card' ||
+                                            _paymentMethod == 'debit_card') &&
+                                        (value == null || value.isEmpty)) {
+                                      return 'Por favor ingrese el número de tarjeta';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _cardNameController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Nombre en la tarjeta',
+                                          prefixIcon: Icon(Icons.person),
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        validator: (value) {
+                                          if ((_paymentMethod ==
+                                                      'credit_card' ||
+                                                  _paymentMethod ==
+                                                      'debit_card') &&
+                                              (value == null ||
+                                                  value.isEmpty)) {
+                                            return 'Por favor ingrese el nombre';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _expiryController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'MM/AA',
+                                          prefixIcon: Icon(
+                                            Icons.calendar_today,
+                                          ),
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        validator: (value) {
+                                          if ((_paymentMethod ==
+                                                      'credit_card' ||
+                                                  _paymentMethod ==
+                                                      'debit_card') &&
+                                              (value == null ||
+                                                  value.isEmpty)) {
+                                            return 'Por favor ingrese la fecha';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _cvvController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'CVV',
+                                          prefixIcon: Icon(Icons.lock),
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        obscureText: true,
+                                        validator: (value) {
+                                          if ((_paymentMethod ==
+                                                      'credit_card' ||
+                                                  _paymentMethod ==
+                                                      'debit_card') &&
+                                              (value == null ||
+                                                  value.isEmpty)) {
+                                            return 'Por favor ingrese el CVV';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Botón de confirmación
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _placeOrder,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink,
+                        backgroundColor: Colors.pink[800],
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child:
                           _isLoading
@@ -262,15 +579,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                              : const Text('Realizar pedido'),
+                              : const Text(
+                                'CONFIRMAR COMPRA',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                     ),
                   ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPaymentMethodSelector() {
+    return Column(
+      children:
+          _paymentMethods.map((method) {
+            return RadioListTile<String>(
+              title: Row(
+                children: [
+                  Icon(method['icon'] as IconData, color: Colors.pink[800]),
+                  const SizedBox(width: 8),
+                  Text(method['label'] as String),
+                ],
+              ),
+              value: method['value'] as String,
+              groupValue: _paymentMethod,
+              onChanged: (value) {
+                setState(() {
+                  _paymentMethod = value!;
+                });
+              },
+              activeColor: Colors.pink[800],
+              contentPadding: EdgeInsets.zero,
+            );
+          }).toList(),
+    );
+  }
+
+  Widget _buildShippingTypeSelector() {
+    return Column(
+      children:
+          _shippingOptions.map((option) {
+            return RadioListTile<String>(
+              title: Text(option['label'] as String),
+              value: option['value'] as String,
+              groupValue: _shippingType,
+              onChanged: (value) {
+                setState(() {
+                  _shippingType = value!;
+                });
+              },
+              activeColor: Colors.pink[800],
+              contentPadding: EdgeInsets.zero,
+            );
+          }).toList(),
     );
   }
 }

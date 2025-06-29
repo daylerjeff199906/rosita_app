@@ -57,7 +57,7 @@ class OrderConfirmationScreen extends StatelessWidget {
                   children: [
                     _buildInfoRow('Número de pedido', orderId),
                     const Divider(),
-                    _buildInfoRow('Total', '\$${total.toStringAsFixed(2)}'),
+                    _buildInfoRow('Total', '\S/${total.toStringAsFixed(2)}'),
                     const Divider(),
                     _buildInfoRow('Dirección de envío', deliveryAddress),
                   ],

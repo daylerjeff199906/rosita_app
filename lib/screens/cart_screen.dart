@@ -15,6 +15,7 @@ class _CartScreenState extends State<CartScreen> {
   final _supabase = Supabase.instance.client;
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
+  String? getCurrentUserId() => _supabase.auth.currentUser?.id;
 
   @override
   void initState() {
@@ -25,12 +26,17 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> _loadCartItems() async {
     setState(() => _isLoading = true);
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      final userId = getCurrentUserId();
+      if (userId == null) {
+        setState(() {
+          _cartItems = [];
+        });
+        return;
+      }
 
       final response = await _supabase
           .from('cart_items')
-          .select('*, products(*, category:categories(*))')
+          .select('*, product:products(*, category:categories(*))')
           .eq('user_id', userId);
 
       setState(() {
