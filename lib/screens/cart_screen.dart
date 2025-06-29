@@ -101,6 +101,10 @@ class _CartScreenState extends State<CartScreen> {
         ),
         backgroundColor: Colors.pink,
         iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body:
           _isLoading
