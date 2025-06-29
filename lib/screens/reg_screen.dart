@@ -71,12 +71,28 @@ class _RegScreenState extends State<RegScreen> {
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Por favor verifica tu correo electrónico'),
-            ),
-          );
-          Navigator.pop(context);
+          try {
+            await supabase.from('profile').insert({
+              'id': response.user!.id,
+              'full_name': name,
+              'email': email,
+            });
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Por favor verifica tu correo electrónico'),
+                ),
+              );
+              Navigator.pop(context);
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+            }
+          }
         }
       }
     } on AuthException catch (error) {

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rositas_appk/screens/login_screen.dart';
-import 'package:rositas_appk/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -27,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _avatarUrl;
   bool _isLoading = false;
   bool _notificationsEnabled = true;
+  String? _profileId;
 
   @override
   void initState() {
@@ -51,15 +51,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final userId = _supabase.auth.currentUser?.id;
+      final userEmail = _supabase.auth.currentUser?.email;
       if (userId == null) return;
 
       final response =
-          await _supabase.from('profiles').select().eq('id', userId).single();
+          await _supabase.from('profiles').select().eq('user', userId).single();
 
       if (mounted) {
         setState(() {
+          _profileId = response['id'];
           _nameController.text = response['full_name'] ?? '';
-          _emailController.text = response['email'] ?? '';
+          _emailController.text = response['email'] ?? userEmail ?? '';
           _phoneController.text = response['phone'] ?? '';
           _addressController.text = response['address'] ?? '';
           _avatarUrl = response['avatar_url'];
@@ -144,15 +146,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      await _supabase.from('profiles').upsert({
-        'id': userId,
+      final updates = {
+        // if (_profileId != null) 'id': _profileId, // Solo incluimos ID si existe
+        'user': userId, // Campo de relación con auth.users
         'full_name': _nameController.text,
         'email': _emailController.text,
         'phone': _phoneController.text,
         'address': _addressController.text,
         'notifications_enabled': _notificationsEnabled,
         'updated_at': DateTime.now().toIso8601String(),
-      });
+      };
+
+      debugPrint('Actualizando perfil: $updates');
+
+      var query = _supabase.from('profiles').update(updates);
+      if (_profileId != null) {
+        debugPrint('Actualizando perfil con ID: $_profileId');
+        query = query.eq('id', _profileId!);
+      }
+      await query.select().single();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -160,6 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
+      debugPrint('Error al guardar el perfil: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al guardar los cambios')),
