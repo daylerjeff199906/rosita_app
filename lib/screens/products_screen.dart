@@ -201,7 +201,7 @@ class ProductCard extends StatelessWidget {
           constraints: const BoxConstraints(
             minWidth: 150,
             maxWidth: 180,
-            minHeight: 380, // Añadido altura mínima para evitar overflow
+            minHeight: 420, // Añadido altura mínima para evitar overflow
           ),
           child: IntrinsicHeight(
             // Asegura que la columna calcule su altura correctamente
@@ -343,9 +343,9 @@ class ProductCard extends StatelessWidget {
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 11,
-                                height: 1.3,
+                                height: 1.4,
                               ),
-                              maxLines: 2,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
