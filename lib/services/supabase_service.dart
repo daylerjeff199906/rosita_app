@@ -205,26 +205,34 @@ class SupabaseService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
-    final response = await _supabase
-        .from('orders')
-        .select('''
-        *,
-        order_items:order_items(
+    try {
+      final response = await _supabase
+          .from('orders')
+          .select('''
           *,
-          product:products(*)
-        )
-      ''')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
+          order_items(
+            *,
+            product:products(
+              *,
+              category:categories(*)
+            )
+          )
+        ''')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
 
-    return response
-        .map<Order>(
-          (orderData) => Order.fromSupabase(
-            orderData,
-            orderData['order_items'] as List<Map<String, dynamic>>,
-          ),
-        )
-        .toList();
+      return response.map<Order>((orderData) {
+        final items =
+            (orderData['order_items'] as List<dynamic>? ?? [])
+                .whereType<Map<String, dynamic>>()
+                .toList();
+
+        return Order.fromSupabase(orderData, items);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching user orders: $e');
+      rethrow;
+    }
   }
 
   Future<void> createOrder({
