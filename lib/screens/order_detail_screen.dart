@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/order.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final Order order;
@@ -52,12 +52,16 @@ class OrderDetailScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildStatusStep('Confirmado', order.status != 'Cancelado'),
-                _buildStatusStep('Procesando', 
-                    order.status == 'Procesando' || 
-                    order.status == 'Enviado' || 
-                    order.status == 'Completado'),
-                _buildStatusStep('Enviado', 
-                    order.status == 'Enviado' || order.status == 'Completado'),
+                _buildStatusStep(
+                  'Procesando',
+                  order.status == 'Procesando' ||
+                      order.status == 'Enviado' ||
+                      order.status == 'Completado',
+                ),
+                _buildStatusStep(
+                  'Enviado',
+                  order.status == 'Enviado' || order.status == 'Completado',
+                ),
                 _buildStatusStep('Completado', order.status == 'Completado'),
               ],
             ),
@@ -77,9 +81,7 @@ class OrderDetailScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: isActive ? Colors.pink : Colors.grey,
-          ),
+          style: TextStyle(color: isActive ? Colors.pink : Colors.grey),
         ),
       ],
     );

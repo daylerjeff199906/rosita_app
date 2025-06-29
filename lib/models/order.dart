@@ -107,9 +107,10 @@ class OrderItem {
 
 class CartItem {
   final Product product;
+  final String id; // Optional ID for the cart item
   int quantity;
 
-  CartItem({required this.product, this.quantity = 1});
+  CartItem({required this.product, required this.id, this.quantity = 1});
 
   double get total => product.price * quantity;
 
@@ -127,6 +128,7 @@ class CartItem {
 
   factory CartItem.fromSupabase(Map<String, dynamic> data) {
     return CartItem(
+      id: data['id'] ?? '',
       product: Product.fromMap(data['product']),
       quantity: data['quantity'] ?? 1,
     );
@@ -134,6 +136,7 @@ class CartItem {
 
   factory CartItem.fromMap(Map<String, dynamic> map) {
     return CartItem(
+      id: map['id'] ?? '',
       product: Product.fromMap(map['product']),
       quantity: map['quantity'] ?? 1,
     );

@@ -1,6 +1,6 @@
 // cart_screen.dart
 import 'package:flutter/material.dart';
-import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/order.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rositas_appk/screens/checkout_screen.dart';
 

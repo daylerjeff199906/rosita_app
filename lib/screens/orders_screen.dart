@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/order.dart';
 import 'package:rositas_appk/screens/order_detail_screen.dart';
 
 class OrdersScreen extends StatelessWidget {
@@ -12,18 +13,17 @@ class OrdersScreen extends StatelessWidget {
         title: const Text('Mis pedidos'),
         backgroundColor: Colors.pink,
       ),
-      body: UserData.orders.isEmpty
-          ? const Center(
-              child: Text('No tienes pedidos realizados'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: UserData.orders.length,
-              itemBuilder: (context, index) {
-                final order = UserData.orders[index];
-                return _buildOrderCard(context, order);
-              },
-            ),
+      body:
+          UserData.orders.isEmpty
+              ? const Center(child: Text('No tienes pedidos realizados'))
+              : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: UserData.orders.length,
+                itemBuilder: (context, index) {
+                  final order = UserData.orders[index];
+                  return _buildOrderCard(context, order);
+                },
+              ),
     );
   }
 
@@ -35,9 +35,7 @@ class OrdersScreen extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => OrderDetailScreen(order: order),
-            ),
+            MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)),
           );
         },
         child: Padding(
@@ -66,7 +64,8 @@ class OrdersScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Fecha: ${order.date.day}/${order.date.month}/${order.date.year}',
+                // Cambia 'order.date' por el nombre correcto de la propiedad de fecha en tu modelo Order
+                'Fecha: ${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}',
               ),
               const SizedBox(height: 8),
               Text(
@@ -81,7 +80,7 @@ class OrdersScreen extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '\$${order.total.toStringAsFixed(2)}',
+                    '\$${order.totalAmount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.pink,
