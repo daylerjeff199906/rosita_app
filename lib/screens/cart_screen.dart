@@ -1,5 +1,7 @@
+// cart_screen.dart
 import 'package:flutter/material.dart';
-import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/order.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rositas_appk/screens/checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -10,72 +12,142 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final _supabase = Supabase.instance.client;
+  List<CartItem> _cartItems = [];
+  bool _isLoading = true;
+  String? getCurrentUserId() => _supabase.auth.currentUser?.id;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCartItems();
+  }
+
+  Future<void> _loadCartItems() async {
+    setState(() => _isLoading = true);
+    try {
+      final userId = getCurrentUserId();
+      if (userId == null) {
+        setState(() {
+          _cartItems = [];
+        });
+        return;
+      }
+
+      final response = await _supabase
+          .from('cart_items')
+          .select('*, product:products(*, category:categories(*))')
+          .eq('user_id', userId);
+
+      setState(() {
+        _cartItems = response.map((item) => CartItem.fromMap(item)).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading cart: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateCartItemQuantity(
+    String cartItemId,
+    int newQuantity,
+  ) async {
+    if (newQuantity <= 0) {
+      await _removeCartItem(cartItemId);
+      return;
+    }
+
+    try {
+      await _supabase
+          .from('cart_items')
+          .update({'quantity': newQuantity})
+          .eq('id', cartItemId);
+
+      await _loadCartItems();
+    } catch (e) {
+      debugPrint('Error updating cart item: $e');
+    }
+  }
+
+  Future<void> _removeCartItem(String cartItemId) async {
+    try {
+      await _supabase.from('cart_items').delete().eq('id', cartItemId);
+
+      await _loadCartItems();
+    } catch (e) {
+      debugPrint('Error removing cart item: $e');
+    }
+  }
+
   double get _totalPrice {
-    return UserData.cart.fold(
-      0, 
+    return _cartItems.fold(
+      0,
       (sum, item) => sum + (item.product.price * item.quantity),
     );
   }
 
-  void _removeItem(int index) {
-    setState(() {
-      UserData.cart.removeAt(index);
-    });
-  }
-
-  void _updateQuantity(int index, int newQuantity) {
-    if (newQuantity > 0) {
-      setState(() {
-        UserData.cart[index].quantity = newQuantity;
-      });
-    } else {
-      _removeItem(index);
-    }
-  }
+  double get _discount => 0;
+  double get _deliveryFee => 0;
+  double get _subTotal => _totalPrice - _discount + _deliveryFee;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Carrito de compras'),
+        title: const Text(
+          'Carrito de compras',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.pink,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: UserData.cart.isEmpty
-                ? const Center(
-                    child: Text('Tu carrito está vacío'),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: UserData.cart.length,
-                    itemBuilder: (context, index) {
-                      final item = UserData.cart[index];
-                      return _buildCartItem(item, index);
-                    },
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _cartItems.isEmpty
+              ? const Center(child: Text('Tu carrito está vacío'))
+              : Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _cartItems.length,
+                      itemBuilder: (context, index) {
+                        final item = _cartItems[index];
+                        return _buildCartItem(item, index);
+                      },
+                    ),
                   ),
-          ),
-          if (UserData.cart.isNotEmpty) _buildTotalSection(),
-        ],
-      ),
+                  _buildTotalSection(),
+                ],
+              ),
     );
   }
 
   Widget _buildCartItem(CartItem item, int index) {
     return Card(
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                item.product.imageUrl,
+              child: Image.network(
+                item.product.imageUrl ??
+                    'https://via.placeholder.com/80x80.png?text=Sin+Imagen',
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
+                errorBuilder:
+                    (context, error, stackTrace) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, size: 40),
+                    ),
               ),
             ),
             const SizedBox(width: 16),
@@ -83,32 +155,83 @@ class _CartScreenState extends State<CartScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (item.product.category != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.pink.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          item.product.category!.name,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.pink,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   Text(
                     item.product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                  Text('\$${item.product.price.toStringAsFixed(2)}'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'S/ ${item.product.price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.pink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Total: S/ ${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                 ],
               ),
             ),
-            Row(
+            Column(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.remove),
-                  onPressed: () => _updateQuantity(
-                    index, item.quantity - 1),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove, size: 20),
+                      onPressed:
+                          () => _updateCartItemQuantity(
+                            item.id,
+                            item.quantity - 1,
+                          ),
+                    ),
+                    Text(
+                      '${item.quantity}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 20),
+                      onPressed:
+                          () => _updateCartItemQuantity(
+                            item.id,
+                            item.quantity + 1,
+                          ),
+                    ),
+                  ],
                 ),
-                Text('${item.quantity}'),
                 IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _updateQuantity(
-                    index, item.quantity + 1),
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _removeCartItem(item.id),
                 ),
               ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _removeItem(index),
             ),
           ],
         ),
@@ -125,50 +248,87 @@ class _CartScreenState extends State<CartScreen> {
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '\$${_totalPrice.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.pink,
-                ),
-              ),
-            ],
+          _buildTotalRow('Total', _totalPrice),
+          const SizedBox(height: 4),
+          if (_discount > 0) ...[
+            _buildTotalRow('Descuento', -_discount),
+            const SizedBox(height: 4),
+          ],
+          _buildTotalRow('Delivery', _deliveryFee),
+          const Divider(height: 20, thickness: 1),
+          _buildTotalRow(
+            'Sub Total',
+            _subTotal,
+            bold: true,
+            color: Colors.pink,
           ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.pink,
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 2,
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CheckoutScreen(),
+              onPressed:
+                  _cartItems.isEmpty
+                      ? null
+                      : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CheckoutScreen(),
+                          ),
+                        );
+                      },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shopping_cart_checkout, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Continuar (S/ ${_subTotal.toStringAsFixed(2)})',
+                    style: const TextStyle(fontSize: 18, color: Colors.white),
                   ),
-                );
-              },
-              child: const Text(
-                'Proceder al pago',
-                style: TextStyle(fontSize: 18),
+                ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTotalRow(
+    String label,
+    double amount, {
+    bool bold = false,
+    Color? color,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          '${amount < 0 ? '-' : ''}S/ ${amount.abs().toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            color: color ?? Colors.black,
+          ),
+        ),
+      ],
     );
   }
 }
