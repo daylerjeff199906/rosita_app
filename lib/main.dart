@@ -37,6 +37,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Rositas App',
       theme: ThemeData(primarySwatch: Colors.pink),
+      debugShowCheckedModeBanner: false,
       onGenerateRoute: (settings) {
         // Interceptamos todas las rutas para verificar autenticación
         final routeBuilder = AppRoutes.generateRoute(settings);
