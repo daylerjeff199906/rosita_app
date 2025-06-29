@@ -51,7 +51,13 @@ class UserData {
       } else {
         // Agregar nuevo item
         await supabaseService.addToCart(product.id, quantity);
-        cart.add(CartItem(product: product, quantity: quantity));
+        cart.add(
+          CartItem(
+            product: product,
+            id: '', // ID opcional, puede ser generado por Supabase
+            quantity: quantity,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error adding to cart: $e');

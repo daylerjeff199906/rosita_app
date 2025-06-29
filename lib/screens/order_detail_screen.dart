@@ -119,7 +119,7 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderItem(CartItem item) {
+  Widget _buildOrderItem(OrderItem item) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -127,7 +127,7 @@ class OrderDetailScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
-              item.product.imageUrl ?? 'assets/images/default.png',
+              item.productImage ?? 'assets/images/default.png',
               width: 60,
               height: 60,
               fit: BoxFit.cover,
@@ -139,7 +139,7 @@ class OrderDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.product.name,
+                  item.productImage ?? 'Producto sin imagen',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text('Cantidad: ${item.quantity}'),
@@ -147,7 +147,7 @@ class OrderDetailScreen extends StatelessWidget {
             ),
           ),
           Text(
-            '\$${(item.product.price * item.quantity).toStringAsFixed(2)}',
+            '\$${(item.unitPrice * item.quantity).toStringAsFixed(2)}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
@@ -167,12 +167,15 @@ class OrderDetailScreen extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            _buildSummaryRow('Subtotal', '\$${order.total.toStringAsFixed(2)}'),
+            _buildSummaryRow(
+              'Subtotal',
+              '\$${order.totalAmount.toStringAsFixed(2)}',
+            ),
             _buildSummaryRow('Envío', '\$0.00'),
             const Divider(),
             _buildSummaryRow(
               'Total',
-              '\$${order.total.toStringAsFixed(2)}',
+              '\$${order.totalAmount.toStringAsFixed(2)}',
               isTotal: true,
             ),
             const SizedBox(height: 24),
