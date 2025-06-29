@@ -1,3 +1,5 @@
+import 'package:rositas_appk/models/product.dart';
+
 class UserData {
   static String name = '';
   static String email = '';
@@ -6,32 +8,11 @@ class UserData {
   static List<Order> orders = [];
 }
 
-class Product {
-  final String id;
-  final String name;
-  final String description;
-  final double price;
-  final String imageUrl;
-  final String category;
-
-  Product({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.price,
-    required this.imageUrl,
-    required this.category,
-  });
-}
-
 class CartItem {
   final Product product;
   int quantity;
 
-  CartItem({
-    required this.product,
-    this.quantity = 1,
-  });
+  CartItem({required this.product, this.quantity = 1});
 
   double get total => product.price * quantity;
 }

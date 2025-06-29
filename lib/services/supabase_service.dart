@@ -18,10 +18,7 @@ class SupabaseService {
     return await _supabase.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'full_name': name,
-        'email': email,
-      },
+      data: {'full_name': name, 'email': email},
     );
   }
 
@@ -44,11 +41,8 @@ class SupabaseService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return null;
 
-    final response = await _supabase
-        .from('profiles')
-        .select()
-        .eq('id', userId)
-        .single();
+    final response =
+        await _supabase.from('profiles').select().eq('id', userId).single();
 
     return response;
   }
@@ -83,11 +77,122 @@ class SupabaseService {
 
     await _storage
         .from('avatars')
-        .uploadBinary(fileName, fileBytes, fileOptions: FileOptions(
-          contentType: 'image/$fileExtension',
-          upsert: true,
-        ));
+        .uploadBinary(
+          fileName,
+          fileBytes,
+          fileOptions: FileOptions(
+            contentType: 'image/$fileExtension',
+            upsert: true,
+          ),
+        );
 
     return _storage.from('avatars').getPublicUrl(fileName);
+  }
+
+  // Productos
+  Future<List<Map<String, dynamic>>> getProducts() async {
+    final response = await _supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<Map<String, dynamic>> getProductDetails(int productId) async {
+    final response =
+        await _supabase
+            .from('products')
+            .select('*')
+            .eq('id', productId)
+            .single();
+
+    return response;
+  }
+
+  // Carrito
+  Future<List<Map<String, dynamic>>> getCartItems() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    final response = await _supabase
+        .from('cart_items')
+        .select('''
+          id, 
+          quantity, 
+          products (id, name, price, image_url)
+        ''')
+        .eq('user_id', userId);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> addToCart(int productId, int quantity) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    await _supabase.from('cart_items').upsert({
+      'user_id': userId,
+      'product_id': productId,
+      'quantity': quantity,
+    });
+  }
+
+  Future<void> removeFromCart(int cartItemId) async {
+    await _supabase.from('cart_items').delete().eq('id', cartItemId);
+  }
+
+  // Órdenes
+  Future<List<Map<String, dynamic>>> getUserOrders() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    final response = await _supabase
+        .from('orders')
+        .select('''
+          id,
+          total_amount,
+          status,
+          created_at,
+          order_items:order_items (quantity, products:products (name, price, image_url))
+        ''')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> createOrder(List<Map<String, dynamic>> cartItems) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final total = cartItems.fold(0.0, (sum, item) {
+      return sum + (item['products']['price'] * item['quantity']);
+    });
+
+    final orderResponse =
+        await _supabase
+            .from('orders')
+            .insert({
+              'user_id': userId,
+              'total_amount': total,
+              'status': 'pending',
+            })
+            .select()
+            .single();
+
+    final orderId = orderResponse['id'];
+
+    for (final item in cartItems) {
+      await _supabase.from('order_items').insert({
+        'order_id': orderId,
+        'product_id': item['products']['id'],
+        'quantity': item['quantity'],
+        'unit_price': item['products']['price'],
+      });
+    }
+
+    // Limpiar carrito
+    await _supabase.from('cart_items').delete().eq('user_id', userId);
   }
 }

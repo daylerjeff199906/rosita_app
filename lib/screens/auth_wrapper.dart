@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:rositas_appk/data/routes.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rositas_appk/screens/login_screen.dart';
 import 'package:rositas_appk/screens/home_screen.dart';
@@ -26,28 +27,38 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _initializeAuth() async {
     try {
-      // Verificar sesión existente inmediatamente
       final initialSession = _supabase.auth.currentSession;
       debugPrint(
         'Sesión inicial: ${initialSession?.user.email ?? "No autenticado"}',
       );
 
-      // Configurar listener para cambios de autenticación
       _authSubscription = _supabase.auth.onAuthStateChange.listen((event) {
         debugPrint('Cambio en estado de autenticación: ${event.event}');
         if (mounted) {
           setState(() => _isInitializing = false);
+          // Redirigir según estado de autenticación
+          if (event.event == AuthChangeEvent.signedIn) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.home,
+              (route) => false,
+            );
+          } else if (event.event == AuthChangeEvent.signedOut) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.welcome,
+              (route) => false,
+            );
+          }
         }
       });
 
-      // Timeout para evitar pantalla de carga infinita
       await Future.delayed(const Duration(seconds: 3));
       if (mounted && _isInitializing) {
         setState(() => _isInitializing = false);
       }
     } catch (e, stackTrace) {
-      debugPrint('Error en AuthWrapper: $e');
-      debugPrint('Stack trace: $stackTrace');
+      debugPrint('Error en AuthWrapper: $e\n$stackTrace');
       if (mounted) {
         setState(() {
           _isInitializing = false;
@@ -86,11 +97,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return _buildErrorScreen();
     }
 
-    // Redirigir según estado de autenticación
-    print('Estado de autenticación: ${_supabase.auth.currentSession?.user.email ?? "No autenticado"}');
-    debugPrint(
-      'Redirigiendo a ${_supabase.auth.currentSession == null ? "LoginScreen" : "HomeScreen"}',
-    );
     return _supabase.auth.currentSession == null
         ? const LoginScreen()
         : const HomeScreen();

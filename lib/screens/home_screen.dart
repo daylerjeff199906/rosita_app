@@ -51,8 +51,8 @@ class HomeScreen extends StatelessWidget {
           _buildDrawerItem(
             context,
             icon: Icons.category,
-            text: 'Categorías',
-            onTap: () => _navigateTo(context, '/categories'),
+            text: 'Productos',
+            onTap: () => _navigateTo(context, '/products'),
           ),
           _buildDrawerItem(
             context,

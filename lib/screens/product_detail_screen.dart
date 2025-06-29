@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/product.dart';
 import 'package:rositas_appk/screens/cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {

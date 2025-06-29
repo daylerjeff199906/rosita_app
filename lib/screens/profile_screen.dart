@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:rositas_appk/data/user_data.dart';
 import 'package:rositas_appk/screens/login_screen.dart';
 import 'package:rositas_appk/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _supabaseService = SupabaseService();
+  final _supabase = Supabase.instance.client;
   final _picker = ImagePicker();
 
   late TextEditingController _nameController;
@@ -26,27 +26,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _selectedImage;
   String? _avatarUrl;
   bool _isLoading = false;
+  bool _notificationsEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: UserData.name);
-    _emailController = TextEditingController(text: UserData.email);
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _loadProfileData();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadProfileData() async {
     setState(() => _isLoading = true);
     try {
-      final profile = await _supabaseService.getUserProfile();
-      if (profile != null && mounted) {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response =
+          await _supabase.from('profiles').select().eq('id', userId).single();
+
+      if (mounted) {
         setState(() {
-          _avatarUrl = profile['avatar_url'];
-          _phoneController.text = profile['phone'] ?? '';
-          _addressController.text = profile['address'] ?? '';
+          _nameController.text = response['full_name'] ?? '';
+          _emailController.text = response['email'] ?? '';
+          _phoneController.text = response['phone'] ?? '';
+          _addressController.text = response['address'] ?? '';
+          _avatarUrl = response['avatar_url'];
+          _notificationsEnabled = response['notifications_enabled'] ?? true;
         });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar el perfil')),
+        );
       }
     } finally {
       if (mounted) {
@@ -57,62 +81,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _uploadAvatar() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
 
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-        _isLoading = true;
-      });
+    setState(() {
+      _selectedImage = File(pickedFile.path);
+      _isLoading = true;
+    });
 
-      try {
-        final newAvatarUrl = await _supabaseService.uploadAvatar(pickedFile);
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
 
-        if (newAvatarUrl != null && mounted) {
-          setState(() {
-            _avatarUrl = newAvatarUrl;
-          });
+      final fileExtension = pickedFile.path.split('.').last;
+      final fileName = 'avatar_$userId.$fileExtension';
+      final fileBytes = await pickedFile.readAsBytes();
 
-          // Actualizar el perfil con la nueva URL del avatar
-          await _saveProfile(updateAvatarOnly: true);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Foto de perfil actualizada')),
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al subir la imagen')),
+      await _supabase.storage
+          .from('avatars')
+          .uploadBinary(
+            fileName,
+            fileBytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$fileExtension',
+              upsert: true,
+            ),
           );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+
+      final newAvatarUrl = _supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+      await _supabase
+          .from('profiles')
+          .update({'avatar_url': newAvatarUrl})
+          .eq('id', userId);
+
+      if (mounted) {
+        setState(() => _avatarUrl = newAvatarUrl);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil actualizada')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al actualizar la foto')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<void> _saveProfile({bool updateAvatarOnly = false}) async {
-    if (!updateAvatarOnly && !_formKey.currentState!.validate()) return;
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      await _supabaseService.updateProfile(
-        name: _nameController.text,
-        email: _emailController.text,
-        phone: _phoneController.text,
-        address: _addressController.text,
-      );
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
 
-      if (!updateAvatarOnly && mounted) {
-        // Actualizar UserData si es necesario
-        UserData.name = _nameController.text;
-        UserData.email = _emailController.text;
+      await _supabase.from('profiles').upsert({
+        'id': userId,
+        'full_name': _nameController.text,
+        'email': _emailController.text,
+        'phone': _phoneController.text,
+        'address': _addressController.text,
+        'notifications_enabled': _notificationsEnabled,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
 
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil actualizado correctamente')),
         );
@@ -120,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al actualizar el perfil')),
+          const SnackBar(content: Text('Error al guardar los cambios')),
         );
       }
     } finally {
@@ -147,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  await _supabaseService.signOut();
+                  await _supabase.auth.signOut();
                   if (mounted) {
                     Navigator.pushAndRemoveUntil(
                       context,
@@ -192,12 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             CircleAvatar(
                               radius: 50,
                               backgroundColor: Colors.pink,
-                              backgroundImage:
-                                  _selectedImage != null
-                                      ? FileImage(_selectedImage!)
-                                      : _avatarUrl != null
-                                      ? CachedNetworkImageProvider(_avatarUrl!)
-                                      : null,
+                              backgroundImage: _buildProfileImage(),
                               child:
                                   _selectedImage == null && _avatarUrl == null
                                       ? const Icon(
@@ -229,13 +266,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 30),
-                      TextFormField(
+                      _buildTextFormField(
                         controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre completo',
-                          prefixIcon: Icon(Icons.person),
-                          border: OutlineInputBorder(),
-                        ),
+                        label: 'Nombre completo',
+                        icon: Icons.person,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Por favor ingresa tu nombre';
@@ -244,13 +278,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      _buildTextFormField(
                         controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo electrónico',
-                          prefixIcon: Icon(Icons.email),
-                          border: OutlineInputBorder(),
-                        ),
+                        label: 'Correo electrónico',
+                        icon: Icons.email,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -263,23 +294,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      _buildTextFormField(
                         controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Teléfono',
-                          prefixIcon: Icon(Icons.phone),
-                          border: OutlineInputBorder(),
-                        ),
+                        label: 'Teléfono',
+                        icon: Icons.phone,
                         keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      _buildTextFormField(
                         controller: _addressController,
-                        decoration: const InputDecoration(
-                          labelText: 'Dirección',
-                          prefixIcon: Icon(Icons.home),
-                          border: OutlineInputBorder(),
-                        ),
+                        label: 'Dirección',
+                        icon: Icons.home,
                         maxLines: 2,
                       ),
                       const SizedBox(height: 30),
@@ -293,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed: _isLoading ? null : () => _saveProfile(),
+                          onPressed: _isLoading ? null : _saveProfile,
                           child:
                               _isLoading
                                   ? const CircularProgressIndicator(
@@ -311,9 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ListTile(
                         leading: const Icon(Icons.security, color: Colors.pink),
                         title: const Text('Seguridad y privacidad'),
-                        onTap: () {
-                          // Navegar a pantalla de seguridad
-                        },
+                        onTap: () => _showComingSoon(context),
                       ),
                       ListTile(
                         leading: const Icon(
@@ -322,22 +345,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         title: const Text('Notificaciones'),
                         trailing: Switch(
-                          value: true,
-                          onChanged: (value) {},
+                          value: _notificationsEnabled,
+                          onChanged: (value) {
+                            setState(() => _notificationsEnabled = value);
+                            _saveProfile();
+                          },
                           activeColor: Colors.pink,
                         ),
                       ),
                       ListTile(
                         leading: const Icon(Icons.help, color: Colors.pink),
                         title: const Text('Ayuda y soporte'),
-                        onTap: () {
-                          // Navegar a pantalla de ayuda
-                        },
+                        onTap: () => _showComingSoon(context),
                       ),
                     ],
                   ),
                 ),
               ),
+    );
+  }
+
+  ImageProvider? _buildProfileImage() {
+    if (_selectedImage != null) {
+      return FileImage(_selectedImage!);
+    } else if (_avatarUrl != null) {
+      return CachedNetworkImageProvider(_avatarUrl!);
+    }
+    return null;
+  }
+
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    int? maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: const OutlineInputBorder(),
+      ),
+      keyboardType: keyboardType,
+      validator: validator,
+      maxLines: maxLines,
+    );
+  }
+
+  void _showComingSoon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funcionalidad en desarrollo')),
     );
   }
 }
