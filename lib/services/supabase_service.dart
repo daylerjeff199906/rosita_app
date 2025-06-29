@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -91,15 +92,25 @@ class SupabaseService {
 
   // Productos
   Future<List<Map<String, dynamic>>> getProducts() async {
-    final response = await _supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true);
+    try {
+      final response = await _supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true);
 
-    return List<Map<String, dynamic>>.from(response);
+      debugPrint('Response function: ${response.length} productos obtenidos');
+      debugPrint(
+        'Primer producto: ${response.isNotEmpty ? response[0] : 'vacío'}',
+      );
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error en getProducts: $e');
+      rethrow;
+    }
   }
 
-  Future<Map<String, dynamic>> getProductDetails(int productId) async {
+  Future<Map<String, dynamic>> getProductDetails(String productId) async {
     final response =
         await _supabase
             .from('products')

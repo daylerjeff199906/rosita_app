@@ -1,28 +1,40 @@
 class Product {
   final String id;
   final String name;
-  final String description;
+  final String? description;
   final double price;
-  final String imageUrl;
-  final String category;
+  final String? category;
+  final String? imageUrl;
+  final int stockQuantity;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Product({
     required this.id,
     required this.name,
-    required this.description,
+    this.description,
     required this.price,
-    required this.imageUrl,
-    required this.category,
+    this.category,
+    this.imageUrl,
+    this.stockQuantity = 0,
+    this.isActive = true,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
-      id: map['id'],
+      id: map['id'].toString(),
       name: map['name'],
-      description: map['description'] ?? '',
+      description: map['description'],
       price: (map['price'] as num).toDouble(),
-      imageUrl: map['image_url'] ?? '',
-      category: map['category'] ?? '',
+      category: map['category'],
+      imageUrl: map['image_url'],
+      stockQuantity: map['stock_quantity'] ?? 0,
+      isActive: map['is_active'] ?? true,
+      createdAt: DateTime.parse(map['created_at']),
+      updatedAt: DateTime.parse(map['updated_at']),
     );
   }
 }

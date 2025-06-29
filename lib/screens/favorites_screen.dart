@@ -19,6 +19,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       price: 59.99,
       imageUrl: 'assets/products/sofa1.jpg',
       category: 'sofas',
+      createdAt: DateTime(2024, 1, 1),
+      updatedAt: DateTime(2024, 1, 2),
     ),
     Product(
       id: '2',
@@ -27,6 +29,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       price: 19.99,
       imageUrl: 'assets/products/silla1.jpg',
       category: 'sillas',
+      createdAt: DateTime(2024, 1, 3),
+      updatedAt: DateTime(2024, 1, 4),
     ),
   ];
 
@@ -43,7 +47,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void _navigateToProductDetail(Product product) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
+      MaterialPageRoute(builder: (_) => ProductDetailScreen(productId: product.id)),
     );
   }
 
@@ -124,7 +128,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       top: Radius.circular(12),
                     ),
                     child: Image.asset(
-                      product.imageUrl,
+                      product.imageUrl ?? 'assets/images/placeholder.png',
                       width: double.infinity,
                       fit: BoxFit.cover,
                     ),
