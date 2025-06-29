@@ -27,7 +27,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isLoading = false;
   bool _loadingUserData = true;
   List<CartItem> _cartItems = [];
-  Map<String, dynamic>? _userProfile;
 
   final _supabase = Supabase.instance.client;
 
@@ -67,7 +66,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (profileResponse != null) {
         setState(() {
-          _userProfile = profileResponse;
+          UserData.id = profileResponse['id'].toString();
           _phoneController.text = profileResponse['phone'] ?? '';
           _addressController.text = profileResponse['address'] ?? '';
           _cityController.text = profileResponse['city'] ?? '';
@@ -149,23 +148,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // Limpiar el carrito
       await _supabase.from('cart_items').delete().eq('user_id', userId);
-
-      // Actualizar dirección del usuario si es diferente
-      if (_userProfile?['address'] != _addressController.text ||
-          _userProfile?['city'] != _cityController.text ||
-          _userProfile?['postal_code'] != _zipController.text ||
-          _userProfile?['phone'] != _phoneController.text) {
-        await _supabase
-            .from('profiles')
-            .update({
-              'address': _addressController.text,
-              'city': _cityController.text,
-              'postal_code': _zipController.text,
-              'phone': _phoneController.text,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('user', userId);
-      }
 
       // Navegar a la pantalla de confirmación
       if (!mounted) return;
