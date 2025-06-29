@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rositas_appk/data/user_data.dart';
 import 'package:rositas_appk/models/product.dart';
+import 'package:rositas_appk/screens/product_detail_screen.dart';
 import 'package:rositas_appk/screens/welcome_screen.dart';
 import 'package:rositas_appk/services/supabase_service.dart';
 
@@ -179,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
               shadows: [
                 Shadow(
                   blurRadius: 2,
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.8),
                   offset: const Offset(1, 1),
                 ),
               ],
@@ -189,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             'Bienvenido/a ${UserData.name.isNotEmpty ? UserData.name.split(' ').first : ''}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
             ),
           ),
@@ -287,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.8),
             spreadRadius: 1,
             blurRadius: 6,
             offset: const Offset(0, 3),
@@ -300,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+            colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
           ),
         ),
         child: Padding(
@@ -318,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shadows: [
                     Shadow(
                       blurRadius: 4,
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.8),
                       offset: const Offset(1, 1),
                     ),
                   ],
@@ -333,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shadows: [
                     Shadow(
                       blurRadius: 2,
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.8),
                       offset: const Offset(1, 1),
                     ),
                   ],
@@ -394,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.8),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -496,7 +497,13 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _navigateToProductDetail(context, product),
+        onTap:
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProductDetailScreen(productId: product.id),
+              ),
+            ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -535,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.8),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -615,7 +622,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.8),
             spreadRadius: 1,
             blurRadius: 6,
             offset: const Offset(0, 3),
@@ -640,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'En compras mayores a S/100',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 14,
                   ),
                 ),
@@ -648,7 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Entrega en 24-48 horas',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 12,
                   ),
                 ),
@@ -658,7 +665,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.8),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -712,9 +719,5 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateTo(BuildContext context, String routeName) {
     Navigator.pop(context); // Cierra el drawer primero
     Navigator.pushNamed(context, routeName);
-  }
-
-  void _navigateToProductDetail(BuildContext context, Product product) {
-    Navigator.pushNamed(context, '/product_detail', arguments: product);
   }
 }

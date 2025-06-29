@@ -200,81 +200,95 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Image section
-            Expanded(
-              child: Stack(
-                children: [
-                  // Product image
-                  (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-                      ? Image.network(
-                        product.imageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value:
-                                  loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                            ),
-                          );
-                        },
-                        errorBuilder:
-                            (context, error, stackTrace) =>
-                                _buildImagePlaceholder(),
-                      )
-                      : _buildImagePlaceholder(),
+            // Image section with minimum height
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: 150, // Altura mínima para las imágenes
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    // Product image
+                    (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                        ? Image.network(
+                          product.imageUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height:
+                              double.infinity, // Para ocupar todo el espacio
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value:
+                                    loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress
+                                                .cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                              ),
+                            );
+                          },
+                          errorBuilder:
+                              (context, error, stackTrace) =>
+                                  _buildImagePlaceholder(),
+                        )
+                        : _buildImagePlaceholder(),
 
-                  // Price tag
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.pink.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'S/${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                    // Price tag
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.pink.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'S/${product.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // Stock availability
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${product.stockQuantity} disponibles',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                    // Stock availability (green when available, red when not)
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              product.stockQuantity > 0
+                                  ? Colors.green.withOpacity(0.8)
+                                  : Colors.red.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          product.stockQuantity > 0
+                              ? '${product.stockQuantity} disponibles'
+                              : 'Agotado',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -284,12 +298,13 @@ class ProductCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category
+                  // Category (in green)
                   if (product.category != null)
                     Text(
                       product.category!.name.toUpperCase(),
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color:
+                            Colors.green.shade700, // Color verde para categoría
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.5,
@@ -346,9 +361,7 @@ class ProductCard extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.shopping_cart, size: 18),
                       label: Text(
-                        product.stockQuantity > 0
-                            ? 'Agregar al carrito'
-                            : 'Sin stock',
+                        product.stockQuantity > 0 ? 'Agregar' : 'Sin stock',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
