@@ -151,6 +151,21 @@ class SupabaseService {
         .eq('id', cartItemId);
   }
 
+  //getCartItemCount
+  Future<int> getCartItemCount() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return 0;
+
+    final response =
+        await _supabase
+            .from('cart_items')
+            .select('count(*)')
+            .eq('user_id', userId)
+            .single();
+
+    return response['count'] as int? ?? 0;
+  }
+
   // Método para obtener todos los items del carrito del usuario
   Future<List<Map<String, dynamic>>> getCartItems() async {
     final userId = _supabase.auth.currentUser?.id;

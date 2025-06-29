@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/product.dart';
 import 'package:rositas_appk/screens/welcome_screen.dart';
 import 'package:rositas_appk/services/supabase_service.dart';
 
@@ -11,28 +13,41 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final SupabaseService _supabaseService = SupabaseService();
-  late Future<List<Map<String, dynamic>>> _productsFuture;
+  late Future<List<Product>> _productsFuture;
   bool _isLoading = true;
+  int _cartItemCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
+    _loadCartCount();
   }
 
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
     try {
-      _productsFuture = _supabaseService.getProducts();
+      _productsFuture = _supabaseService.getProducts().then(
+        (list) => list.map((map) => Product.fromMap(map)).toList(),
+      );
     } catch (e) {
       debugPrint('Error loading products: $e');
-      // Mostrar algún mensaje de error al usuario
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _loadCartCount() async {
+    try {
+      final count = await UserData.getCartItemCount(_supabaseService);
+      setState(() => _cartItemCount = count);
+    } catch (e) {
+      debugPrint('Error loading cart count: $e');
+    }
+  }
+
   void _logout(BuildContext context) {
+    _supabaseService.signOut();
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
@@ -50,20 +65,43 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.pink[800],
         iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
         elevation: 4,
+        actions: [
+          IconButton(
+            icon: Stack(
+              children: [
+                const Icon(Icons.shopping_cart),
+                if (_cartItemCount > 0)
+                  Positioned(
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$_cartItemCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () => _navigateTo(context, '/cart'),
+          ),
+        ],
       ),
       drawer: _buildDrawer(context),
       body: _buildBody(context),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateTo(context, '/cart'),
-        backgroundColor: Colors.pink[800],
-        child: const Icon(Icons.shopping_cart, color: Colors.white),
-      ),
     );
   }
 
@@ -95,6 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             icon: Icons.shopping_cart,
             text: 'Mi carrito',
+            badgeCount: _cartItemCount,
             onTap: () => _navigateTo(context, '/cart'),
           ),
           const Divider(thickness: 1),
@@ -148,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 5),
           Text(
-            'Bienvenido/a',
+            'Bienvenido/a ${UserData.name.isNotEmpty ? UserData.name.split(' ').first : ''}',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 14,
@@ -165,15 +204,36 @@ class _HomeScreenState extends State<HomeScreen> {
     required String text,
     required VoidCallback onTap,
     bool isLogout = false,
+    int badgeCount = 0,
   }) {
     return ListTile(
       leading: Icon(icon, color: isLogout ? Colors.red : Colors.pink[800]),
-      title: Text(
-        text,
-        style: TextStyle(
-          color: isLogout ? Colors.red : Colors.black,
-          fontWeight: isLogout ? FontWeight.bold : FontWeight.normal,
-        ),
+      title: Row(
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              color: isLogout ? Colors.red : Colors.black,
+              fontWeight: isLogout ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          if (badgeCount > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.pink[800],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              child: Text(
+                '$badgeCount',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ],
       ),
       onTap: onTap,
       hoverColor: Colors.pink[50],
@@ -190,58 +250,24 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       child: RefreshIndicator(
-        onRefresh: _loadProducts,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Banner promocional principal
-              _buildMainBanner(context),
-
-              const SizedBox(height: 24),
-
-              // Botón destacado para productos
-              _buildFeaturedButton(
-                context,
-                title: 'Explorar Productos',
-                subtitle: 'Descubre nuestra colección completa',
-                icon: Icons.arrow_forward,
-                onTap: () => _navigateTo(context, '/products'),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Sección de productos destacados
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Productos Destacados',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Lo más popular entre nuestros clientes',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFeaturedProducts(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Banner secundario
-              _buildSecondaryBanner(),
-            ],
-          ),
+        onRefresh: () async {
+          await _loadProducts();
+          await _loadCartCount();
+        },
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildMainBanner(context)),
+            SliverToBoxAdapter(child: const SizedBox(height: 16)),
+            SliverToBoxAdapter(child: _buildCategoriesRow()),
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: _buildFeaturedProductsSection(),
+            ),
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildSecondaryBanner()),
+            SliverToBoxAdapter(child: const SizedBox(height: 16)),
+          ],
         ),
       ),
     );
@@ -317,6 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.pink[700],
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -328,11 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => _navigateTo(context, '/products'),
                 child: const Text(
                   'Ver ofertas',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -342,64 +365,84 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedButton(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.pink[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: Colors.pink[800]),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        subtitle,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: Colors.grey[400]),
-              ],
+  Widget _buildCategoriesRow() {
+    final categories = [
+      {'icon': Icons.chair, 'name': 'Sofás'},
+      {'icon': Icons.king_bed, 'name': 'Camas'},
+      {'icon': Icons.chair_outlined, 'name': 'Sillas'},
+      {'icon': Icons.table_restaurant, 'name': 'Mesas'},
+    ];
+
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: index == 0 ? 16 : 8,
+              right: index == categories.length - 1 ? 16 : 8,
             ),
-          ),
-        ),
+            child: InkWell(
+              onTap: () => _navigateTo(context, '/products'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      categories[index]['icon'] as IconData,
+                      color: Colors.pink[800],
+                      size: 30,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      categories[index]['name'] as String,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
+  SliverList _buildFeaturedProductsSection() {
+    return SliverList(
+      delegate: SliverChildListDelegate([
+        const Text(
+          'Productos Destacados',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Lo más popular entre nuestros clientes',
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 16),
+        _buildFeaturedProducts(),
+      ]),
+    );
+  }
+
   Widget _buildFeaturedProducts() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
+    return FutureBuilder<List<Product>>(
       future: _productsFuture,
       builder: (context, snapshot) {
         if (_isLoading) {
@@ -427,100 +470,134 @@ class _HomeScreenState extends State<HomeScreen> {
           return const Center(child: Text('No hay productos disponibles'));
         }
 
-        // Tomar los primeros 4 productos como destacados
         final featuredProducts = snapshot.data!.take(4).toList();
 
-        return GridView.count(
+        return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 0.7,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          children:
-              featuredProducts
-                  .map((product) => _buildProductItem(product))
-                  .toList(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.7,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+          ),
+          itemCount: featuredProducts.length,
+          itemBuilder: (context, index) {
+            return _buildProductItem(featuredProducts[index]);
+          },
         );
       },
     );
   }
 
-  Widget _buildProductItem(Map<String, dynamic> product) {
+  Widget _buildProductItem(Product product) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
-                ),
-                color: Colors.pink[100],
-                image:
-                    product['image_url'] != null
-                        ? DecorationImage(
-                          image: NetworkImage(product['image_url']),
-                          fit: BoxFit.cover,
-                        )
-                        : null,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _navigateToProductDetail(context, product),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12),
+                      ),
+                      color: Colors.pink[100],
+                      image:
+                          product.imageUrl != null
+                              ? DecorationImage(
+                                image: NetworkImage(product.imageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                              : null,
+                    ),
+                    child:
+                        product.imageUrl == null
+                            ? const Center(
+                              child: Icon(
+                                Icons.image,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
+                            )
+                            : null,
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.favorite_border,
+                          color: Colors.pink,
+                          size: 20,
+                        ),
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
               ),
-              child:
-                  product['image_url'] == null
-                      ? const Center(
-                        child: Icon(Icons.image, size: 50, color: Colors.grey),
-                      )
-                      : null,
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product['name'] ?? 'Producto sin nombre',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'S/ ${product['price'] != null ? product['price'].toStringAsFixed(2) : '0.00'}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.pink[800],
+                  const SizedBox(height: 4),
+                  Text(
+                    'S/ ${product.price.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.pink[800],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.pink[800],
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pink[800],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () => _addToCart(product),
+                      icon: const Icon(Icons.add_shopping_cart, size: 16),
+                      label: const Text(
+                        'Agregar',
+                        style: TextStyle(fontSize: 12),
                       ),
                     ),
-                    onPressed: () => _addToCart(product),
-                    child: const Text(
-                      'Agregar',
-                      style: TextStyle(fontSize: 12, color: Colors.white),
-                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -567,6 +644,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 14,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'Entrega en 24-48 horas',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -587,27 +672,49 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _addToCart(Map<String, dynamic> product) async {
+  Future<void> _addToCart(Product product) async {
     try {
-      await _supabaseService.addToCart(int.parse(product['id']), 1);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${product['name']} agregado al carrito'),
-          duration: const Duration(seconds: 2),
-        ),
+      await UserData.addToCart(
+        product: product,
+        quantity: 1,
+        supabaseService: _supabaseService,
       );
+      await _loadCartCount();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product.name} agregado al carrito'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al agregar al carrito'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Error al agregar al carrito'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
     }
   }
 
   void _navigateTo(BuildContext context, String routeName) {
     Navigator.pop(context); // Cierra el drawer primero
     Navigator.pushNamed(context, routeName);
+  }
+
+  void _navigateToProductDetail(BuildContext context, Product product) {
+    Navigator.pushNamed(context, '/product_detail', arguments: product);
   }
 }

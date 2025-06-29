@@ -188,4 +188,18 @@ class UserData {
 
   static double get cartTotal =>
       cart.fold(0.0, (sum, item) => sum + item.total);
+
+  //getCartItemCount
+  static Future<int> getCartItemCount(SupabaseService supabaseService) async {
+    try {
+      final userId = supabaseService.getCurrentUserId();
+      if (userId == null) return 0;
+
+      final count = await supabaseService.getCartItemCount();
+      return count;
+    } catch (e) {
+      debugPrint('Error getting cart item count: $e');
+      return 0;
+    }
+  }
 }
