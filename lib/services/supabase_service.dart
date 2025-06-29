@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:rositas_appk/data/user_data.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
   factory SupabaseService() => _instance;
   SupabaseService._internal();
+  String? getCurrentUserId() => _supabase.auth.currentUser?.id;
 
   final _supabase = Supabase.instance.client;
   final _storage = Supabase.instance.client.storage;
@@ -122,6 +124,34 @@ class SupabaseService {
   }
 
   // Carrito
+  // Método para obtener un item del carrito por product_id
+  Future<CartItem?> getCartItem(String productId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return null;
+
+    final response =
+        await _supabase
+            .from('cart_items')
+            .select('*, products(*)')
+            .eq('user_id', userId)
+            .eq('product_id', productId)
+            .maybeSingle();
+
+    return response == null ? null : CartItem.fromMap(response);
+  }
+
+  // Método para actualizar la cantidad de un item del carrito
+  Future<void> updateCartItemQuantity(
+    String cartItemId,
+    int newQuantity,
+  ) async {
+    await _supabase
+        .from('cart_items')
+        .update({'quantity': newQuantity})
+        .eq('id', cartItemId);
+  }
+
+  // Método para obtener todos los items del carrito del usuario
   Future<List<Map<String, dynamic>>> getCartItems() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
@@ -138,7 +168,8 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  Future<void> addToCart(int productId, int quantity) async {
+  // Método para agregar un nuevo item al carrito
+  Future<void> addToCart(String productId, int quantity) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -149,31 +180,41 @@ class SupabaseService {
     });
   }
 
-  Future<void> removeFromCart(int cartItemId) async {
+  // Método para eliminar un item del carrito
+  Future<void> removeFromCart(String cartItemId) async {
     await _supabase.from('cart_items').delete().eq('id', cartItemId);
   }
 
   // Órdenes
-  Future<List<Map<String, dynamic>>> getUserOrders() async {
+  Future<List<Order>> getUserOrders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
 
     final response = await _supabase
         .from('orders')
         .select('''
-          id,
-          total_amount,
-          status,
-          created_at,
-          order_items:order_items (quantity, products:products (name, price, image_url))
-        ''')
+        *,
+        order_items:order_items(
+          *,
+          product:products(*)
+        )
+      ''')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(response);
+    return response
+        .map<Order>((orderData) => Order.fromSupabase(orderData))
+        .toList();
   }
 
-  Future<void> createOrder(List<Map<String, dynamic>> cartItems) async {
+  Future<void> createOrder({
+    required List<Map<String, dynamic>> cartItems,
+    required double totalAmount,
+    required String deliveryAddress,
+    required String contactPhone,
+    String? paymentMethod,
+    String? shippingType,
+  }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -187,6 +228,10 @@ class SupabaseService {
             .insert({
               'user_id': userId,
               'total_amount': total,
+              'delivery_address': deliveryAddress,
+              'contact_phone': contactPhone,
+              'payment_method': paymentMethod,
+              'shipping_type': shippingType,
               'status': 'pending',
             })
             .select()
@@ -204,6 +249,39 @@ class SupabaseService {
     }
 
     // Limpiar carrito
+    await _supabase.from('cart_items').delete().eq('user_id', userId);
+  }
+
+  //News functions
+  Future<List<CartItem>> getUserCart() async {
+    final userId = getCurrentUserId();
+    if (userId == null) return [];
+
+    final response = await _supabase
+        .from('cart_items')
+        .select('*, product:products(*)')
+        .eq('user_id', userId);
+
+    return response
+        .map<CartItem>((item) => CartItem.fromSupabase(item))
+        .toList();
+  }
+
+  Future<void> updateCartItem(String productId, int newQuantity) async {
+    final userId = getCurrentUserId();
+    if (userId == null) throw Exception('Usuario no autenticado');
+
+    await _supabase
+        .from('cart_items')
+        .update({'quantity': newQuantity})
+        .eq('product_id', productId)
+        .eq('user_id', userId);
+  }
+
+  Future<void> clearUserCart() async {
+    final userId = getCurrentUserId();
+    if (userId == null) return;
+
     await _supabase.from('cart_items').delete().eq('user_id', userId);
   }
 }

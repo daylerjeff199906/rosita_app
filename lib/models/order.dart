@@ -1,103 +1,53 @@
-class OrderItem {
-  final String id;
-  final String productId;
-  final String productName;
-  final String? productImage;
-  final double unitPrice;
-  final int quantity;
-
-  OrderItem({
-    required this.id,
-    required this.productId,
-    required this.productName,
-    this.productImage,
-    required this.unitPrice,
-    required this.quantity,
-  });
-
-  double get subtotal => unitPrice * quantity;
-
-  factory OrderItem.fromMap(Map<String, dynamic> map) {
-    return OrderItem(
-      id: map['id'].toString(),
-      productId: map['product_id'].toString(),
-      productName:
-          map['product_name'] ??
-          map['products']['name'] ??
-          'Producto desconocido',
-      productImage: map['product_image'] ?? map['products']['image_url'],
-      unitPrice: (map['unit_price'] as num).toDouble(),
-      quantity: map['quantity'] as int,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'product_id': productId,
-      'product_name': productName,
-      'unit_price': unitPrice,
-      'quantity': quantity,
-      if (productImage != null) 'product_image': productImage,
-    };
-  }
-}
+import 'package:rositas_appk/models/product.dart';
 
 class Order {
   final String id;
   final String userId;
   final double totalAmount;
   final String status;
-  final String deliveryAddress;
+  final String? deliveryAddress;
   final String? contactPhone;
-  final String? paymentMethod;
-  final String? shippingType;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? paymentMethod;
+  final String? shippingType;
   final List<OrderItem> items;
 
   Order({
     required this.id,
     required this.userId,
     required this.totalAmount,
-    required this.status,
-    required this.deliveryAddress,
+    this.status = 'pending',
+    this.deliveryAddress,
     this.contactPhone,
-    this.paymentMethod,
-    this.shippingType,
     required this.createdAt,
     required this.updatedAt,
+    this.paymentMethod,
+    this.shippingType,
     required this.items,
   });
 
-  String get formattedDate =>
-      '${createdAt.day}/${createdAt.month}/${createdAt.year}';
-  String get formattedTime =>
-      '${createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')}';
-
-  factory Order.fromMap(Map<String, dynamic> map) {
+  factory Order.fromSupabase(
+    Map<String, dynamic> data,
+    List<Map<String, dynamic>> itemsData,
+  ) {
     return Order(
-      id: map['id'].toString(),
-      userId: map['user_id'].toString(),
-      totalAmount: (map['total_amount'] as num).toDouble(),
-      status: map['status'] ?? 'pending',
-      deliveryAddress: map['delivery_address'] ?? '',
-      contactPhone: map['contact_phone'],
-      paymentMethod: map['payment_method'],
-      shippingType: map['shipping_type'],
-      createdAt: DateTime.parse(map['created_at']),
-      updatedAt: DateTime.parse(map['updated_at']),
-      items:
-          map['order_items'] != null
-              ? List<Map<String, dynamic>>.from(
-                map['order_items'],
-              ).map((item) => OrderItem.fromMap(item)).toList()
-              : [],
+      id: data['id'] ?? '',
+      userId: data['user_id'] ?? '',
+      totalAmount: (data['total_amount'] as num).toDouble(),
+      status: data['status'] ?? 'pending',
+      deliveryAddress: data['delivery_address'],
+      contactPhone: data['contact_phone'],
+      createdAt: DateTime.parse(data['created_at']),
+      updatedAt: DateTime.parse(data['updated_at']),
+      paymentMethod: data['payment_method'],
+      shippingType: data['shipping_type'],
+      items: itemsData.map((item) => OrderItem.fromSupabase(item)).toList(),
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toSupabase() {
     return {
-      'id': id,
       'user_id': userId,
       'total_amount': totalAmount,
       'status': status,
@@ -105,37 +55,91 @@ class Order {
       'contact_phone': contactPhone,
       'payment_method': paymentMethod,
       'shipping_type': shippingType,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'order_items': items.map((item) => item.toMap()).toList(),
     };
   }
+}
 
-  Order copyWith({
-    String? id,
-    String? userId,
-    double? totalAmount,
-    String? status,
-    String? deliveryAddress,
-    String? contactPhone,
-    String? paymentMethod,
-    String? shippingType,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    List<OrderItem>? items,
-  }) {
-    return Order(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      totalAmount: totalAmount ?? this.totalAmount,
-      status: status ?? this.status,
-      deliveryAddress: deliveryAddress ?? this.deliveryAddress,
-      contactPhone: contactPhone ?? this.contactPhone,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
-      shippingType: shippingType ?? this.shippingType,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      items: items ?? this.items,
+class OrderItem {
+  final int? id;
+  final String orderId;
+  final String productId;
+  final int quantity;
+  final double unitPrice;
+  final DateTime createdAt;
+  final String? productName;
+  final String? productImage;
+
+  OrderItem({
+    this.id,
+    required this.orderId,
+    required this.productId,
+    required this.quantity,
+    required this.unitPrice,
+    required this.createdAt,
+    this.productName,
+    this.productImage,
+  });
+
+  factory OrderItem.fromSupabase(Map<String, dynamic> data) {
+    return OrderItem(
+      id: data['id'],
+      orderId: data['order_id'] ?? '',
+      productId: data['product_id'] ?? '',
+      quantity: data['quantity'] ?? 1,
+      unitPrice: (data['unit_price'] as num).toDouble(),
+      createdAt: DateTime.parse(data['created_at']),
+      productName: data['product_name'],
+      productImage: data['product_image'],
     );
+  }
+
+  Map<String, dynamic> toSupabase() {
+    return {
+      'order_id': orderId,
+      'product_id': productId,
+      'quantity': quantity,
+      'unit_price': unitPrice,
+      'product_name': productName,
+      'product_image': productImage,
+    };
+  }
+}
+
+class CartItem {
+  final Product product;
+  int quantity;
+
+  CartItem({required this.product, this.quantity = 1});
+
+  double get total => product.price * quantity;
+
+  OrderItem toOrderItem(String orderId) {
+    return OrderItem(
+      orderId: orderId,
+      productId: product.id,
+      quantity: quantity,
+      unitPrice: product.price,
+      createdAt: DateTime.now(),
+      productName: product.name,
+      productImage: product.imageUrl,
+    );
+  }
+
+  factory CartItem.fromSupabase(Map<String, dynamic> data) {
+    return CartItem(
+      product: Product.fromMap(data['product']),
+      quantity: data['quantity'] ?? 1,
+    );
+  }
+
+  factory CartItem.fromMap(Map<String, dynamic> map) {
+    return CartItem(
+      product: Product.fromMap(map['product']),
+      quantity: map['quantity'] ?? 1,
+    );
+  }
+
+  Map<String, dynamic> toSupabase() {
+    return {'product_id': product.id, 'quantity': quantity};
   }
 }

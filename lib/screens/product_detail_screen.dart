@@ -62,40 +62,59 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    final existingItemIndex = UserData.cart.indexWhere(
-      (item) => item.product.id == _product!.id,
-    );
+    try {
+      // Verificar si el producto ya está en el carrito del usuario en Supabase
+      final existingCartItem = await _supabaseService.getCartItem(_product!.id);
 
-    if (existingItemIndex >= 0) {
-      UserData.cart[existingItemIndex].quantity += _quantity;
-    } else {
-      UserData.cart.add(CartItem(product: _product!, quantity: _quantity));
-    }
+      if (existingCartItem != null) {
+        // Actualizar cantidad si ya existe
+        await _supabaseService.updateCartItemQuantity(
+          existingCartItem.id,
+          existingCartItem.quantity + _quantity,
+        );
+      } else {
+        // Agregar nuevo item al carrito
+        await _supabaseService.addToCart(_product!.id, _quantity);
+      }
 
-    // Pequeña animación de éxito
-    await Future.delayed(const Duration(milliseconds: 500));
+      // Actualizar el carrito en memoria
+      await UserData.loadCart(_supabaseService);
 
-    if (!mounted) return;
+      // Pequeña animación de éxito
+      await Future.delayed(const Duration(milliseconds: 500));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_product!.name} agregado al carrito'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        action: SnackBarAction(
-          label: 'Ver carrito',
-          textColor: Colors.white,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CartScreen()),
-            );
-          },
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_product!.name} agregado al carrito'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          action: SnackBarAction(
+            label: 'Ver carrito',
+            textColor: Colors.white,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+          ),
         ),
-      ),
-    );
-
-    setState(() => _isAddingToCart = false);
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al agregar al carrito: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isAddingToCart = false);
+    }
   }
 
   @override
