@@ -110,7 +110,7 @@ class OrderDetailScreen extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ...order.items.map((item) => _buildOrderItem(item)).toList(),
+            ...order.items.map((item) => _buildOrderItem(item)),
           ],
         ),
       ),
