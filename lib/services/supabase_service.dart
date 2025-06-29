@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/order.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
@@ -203,7 +203,12 @@ class SupabaseService {
         .order('created_at', ascending: false);
 
     return response
-        .map<Order>((orderData) => Order.fromSupabase(orderData))
+        .map<Order>(
+          (orderData) => Order.fromSupabase(
+            orderData,
+            orderData['order_items'] as List<Map<String, dynamic>>,
+          ),
+        )
         .toList();
   }
 
