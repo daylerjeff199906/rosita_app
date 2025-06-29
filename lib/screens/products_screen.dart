@@ -203,10 +203,11 @@ class ProductCard extends StatelessWidget {
             // Image section with minimum height
             ConstrainedBox(
               constraints: const BoxConstraints(
-                minHeight: 150, // Altura mínima para las imágenes
+                minHeight: 120, // Altura mínima para las imágenes
               ),
               child: SizedBox(
                 width: double.infinity,
+                height: 150, // Añade una altura explícita
                 child: Stack(
                   children: [
                     // Product image
