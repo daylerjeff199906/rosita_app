@@ -1,5 +1,7 @@
+// cart_screen.dart
 import 'package:flutter/material.dart';
-import 'package:rositas_appk/data/user_data.dart';
+import 'package:rositas_appk/models/cart_item.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rositas_appk/screens/checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -10,33 +12,78 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final _supabase = Supabase.instance.client;
+  List<CartItem> _cartItems = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCartItems();
+  }
+
+  Future<void> _loadCartItems() async {
+    setState(() => _isLoading = true);
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await _supabase
+          .from('cart_items')
+          .select('*, products(*, category:categories(*))')
+          .eq('user_id', userId);
+
+      setState(() {
+        _cartItems = response.map((item) => CartItem.fromMap(item)).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading cart: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateCartItemQuantity(
+    String cartItemId,
+    int newQuantity,
+  ) async {
+    if (newQuantity <= 0) {
+      await _removeCartItem(cartItemId);
+      return;
+    }
+
+    try {
+      await _supabase
+          .from('cart_items')
+          .update({'quantity': newQuantity})
+          .eq('id', cartItemId);
+
+      await _loadCartItems();
+    } catch (e) {
+      debugPrint('Error updating cart item: $e');
+    }
+  }
+
+  Future<void> _removeCartItem(String cartItemId) async {
+    try {
+      await _supabase.from('cart_items').delete().eq('id', cartItemId);
+
+      await _loadCartItems();
+    } catch (e) {
+      debugPrint('Error removing cart item: $e');
+    }
+  }
+
   double get _totalPrice {
-    return UserData.cart.fold(
+    return _cartItems.fold(
       0,
       (sum, item) => sum + (item.product.price * item.quantity),
     );
   }
 
-  double get _discount => 0; // Cambiado a 0 como solicitaste
+  double get _discount => 0;
   double get _deliveryFee => 0;
-
   double get _subTotal => _totalPrice - _discount + _deliveryFee;
-
-  void _removeItem(int index) {
-    setState(() {
-      UserData.cart.removeAt(index);
-    });
-  }
-
-  void _updateQuantity(int index, int newQuantity) {
-    if (newQuantity > 0) {
-      setState(() {
-        UserData.cart[index].quantity = newQuantity;
-      });
-    } else {
-      _removeItem(index);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,22 +91,24 @@ class _CartScreenState extends State<CartScreen> {
       appBar: AppBar(
         title: const Text(
           'Carrito de compras',
-          style: TextStyle(color: Colors.white), // Texto blanco
+          style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.pink,
-        iconTheme: const IconThemeData(color: Colors.white), // Iconos blancos
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body:
-          UserData.cart.isEmpty
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _cartItems.isEmpty
               ? const Center(child: Text('Tu carrito está vacío'))
               : Column(
                 children: [
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: UserData.cart.length,
+                      itemCount: _cartItems.length,
                       itemBuilder: (context, index) {
-                        final item = UserData.cart[index];
+                        final item = _cartItems[index];
                         return _buildCartItem(item, index);
                       },
                     ),
@@ -100,7 +149,6 @@ class _CartScreenState extends State<CartScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Categoría (nuevo)
                   if (item.product.category != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4.0),
@@ -154,7 +202,10 @@ class _CartScreenState extends State<CartScreen> {
                     IconButton(
                       icon: const Icon(Icons.remove, size: 20),
                       onPressed:
-                          () => _updateQuantity(index, item.quantity - 1),
+                          () => _updateCartItemQuantity(
+                            item.id,
+                            item.quantity - 1,
+                          ),
                     ),
                     Text(
                       '${item.quantity}',
@@ -163,13 +214,16 @@ class _CartScreenState extends State<CartScreen> {
                     IconButton(
                       icon: const Icon(Icons.add, size: 20),
                       onPressed:
-                          () => _updateQuantity(index, item.quantity + 1),
+                          () => _updateCartItemQuantity(
+                            item.id,
+                            item.quantity + 1,
+                          ),
                     ),
                   ],
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _removeItem(index),
+                  onPressed: () => _removeCartItem(item.id),
                 ),
               ],
             ),
@@ -190,7 +244,6 @@ class _CartScreenState extends State<CartScreen> {
         children: [
           _buildTotalRow('Total', _totalPrice),
           const SizedBox(height: 4),
-          // Solo mostramos descuento si es mayor a 0
           if (_discount > 0) ...[
             _buildTotalRow('Descuento', -_discount),
             const SizedBox(height: 4),
@@ -208,7 +261,7 @@ class _CartScreenState extends State<CartScreen> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black, // Cambiado a negro
+                backgroundColor: Colors.black,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -216,12 +269,17 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 elevation: 2,
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-                );
-              },
+              onPressed:
+                  _cartItems.isEmpty
+                      ? null
+                      : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CheckoutScreen(),
+                          ),
+                        );
+                      },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
