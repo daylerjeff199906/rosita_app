@@ -17,7 +17,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  double get _discount => 399;
+  double get _discount => 0; // Cambiado a 0 como solicitaste
   double get _deliveryFee => 0;
 
   double get _subTotal => _totalPrice - _discount + _deliveryFee;
@@ -42,8 +42,12 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Carrito de compras'),
+        title: const Text(
+          'Carrito de compras',
+          style: TextStyle(color: Colors.white), // Texto blanco
+        ),
         backgroundColor: Colors.pink,
+        iconTheme: const IconThemeData(color: Colors.white), // Iconos blancos
       ),
       body:
           UserData.cart.isEmpty
@@ -84,6 +88,11 @@ class _CartScreenState extends State<CartScreen> {
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
+                errorBuilder:
+                    (context, error, stackTrace) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, size: 40),
+                    ),
               ),
             ),
             const SizedBox(width: 16),
@@ -91,6 +100,29 @@ class _CartScreenState extends State<CartScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Categoría (nuevo)
+                  if (item.product.category != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.pink.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          item.product.category!.name,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.pink,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   Text(
                     item.product.name,
                     style: const TextStyle(
@@ -158,8 +190,11 @@ class _CartScreenState extends State<CartScreen> {
         children: [
           _buildTotalRow('Total', _totalPrice),
           const SizedBox(height: 4),
-          _buildTotalRow('Descuento', -_discount),
-          const SizedBox(height: 4),
+          // Solo mostramos descuento si es mayor a 0
+          if (_discount > 0) ...[
+            _buildTotalRow('Descuento', -_discount),
+            const SizedBox(height: 4),
+          ],
           _buildTotalRow('Delivery', _deliveryFee),
           const Divider(height: 20, thickness: 1),
           _buildTotalRow(
@@ -173,11 +208,13 @@ class _CartScreenState extends State<CartScreen> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: Colors.black, // Cambiado a negro
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 2,
               ),
               onPressed: () {
                 Navigator.push(
@@ -185,9 +222,16 @@ class _CartScreenState extends State<CartScreen> {
                   MaterialPageRoute(builder: (_) => const CheckoutScreen()),
                 );
               },
-              child: Text(
-                'Continuar (S/ ${_subTotal.toStringAsFixed(2)})',
-                style: const TextStyle(fontSize: 18, color: Colors.white),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shopping_cart_checkout, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Continuar (S/ ${_subTotal.toStringAsFixed(2)})',
+                    style: const TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ],
               ),
             ),
           ),
