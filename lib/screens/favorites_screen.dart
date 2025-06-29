@@ -18,7 +18,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       description: 'Funda resistente y lavable para sofá de 3 plazas',
       price: 59.99,
       imageUrl: 'assets/products/sofa1.jpg',
-      category: 'sofas',
+      category: Category(
+        id: '1',
+        name: 'Sofás',
+      ),
       createdAt: DateTime(2024, 1, 1),
       updatedAt: DateTime(2024, 1, 2),
     ),
@@ -28,7 +31,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       description: 'Elegante funda para sillas de comedor',
       price: 19.99,
       imageUrl: 'assets/products/silla1.jpg',
-      category: 'sillas',
+      category: Category(
+        id: '2',
+        name: 'Sillas',
+      ),
       createdAt: DateTime(2024, 1, 3),
       updatedAt: DateTime(2024, 1, 4),
     ),

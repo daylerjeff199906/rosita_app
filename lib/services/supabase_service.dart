@@ -95,7 +95,7 @@ class SupabaseService {
     try {
       final response = await _supabase
           .from('products')
-          .select('*')
+          .select('*, category:categories (id, name)')
           .eq('is_active', true);
 
       debugPrint('Response function: ${response.length} productos obtenidos');
@@ -114,7 +114,7 @@ class SupabaseService {
     final response =
         await _supabase
             .from('products')
-            .select('*')
+            .select('*, category:categories (id, name)')
             .eq('id', productId)
             .single();
 

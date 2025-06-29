@@ -40,8 +40,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
             return Product.fromMap(p);
           }).toList();
 
-      debugPrint('Productos convertidos: ${products.length}');
-
       if (mounted) {
         setState(() {
           _products = products;
@@ -72,8 +70,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nuestros Productos'),
+        title: const Text('Lista de productos'),
         backgroundColor: Colors.pink,
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          color: Colors.white,
+          onPressed:
+              () => Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/home',
+                (route) => false,
+              ),
+          tooltip: 'Volver',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -190,13 +204,12 @@ class ProductCard extends StatelessWidget {
             Expanded(
               child: Stack(
                 children: [
-                  // Product image with placeholder
-                  // Product image with placeholder
+                  // Product image
                   (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                       ? Image.network(
                         product.imageUrl!,
                         fit: BoxFit.cover,
-                        width: double.infinity, // Ensure full width
+                        width: double.infinity,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Center(
@@ -225,7 +238,7 @@ class ProductCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.pink.shade600.withOpacity(0.9),
+                        color: Colors.pink.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -239,27 +252,26 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Vegan/Gluten-free badges at bottom left
+                  // Stock availability
                   Positioned(
                     bottom: 8,
                     left: 8,
-                    child: Wrap(
-                      spacing: 4,
-                      children: [
-                        if (product.category?.toLowerCase().contains('vegan') ??
-                            false)
-                          _buildBadge('Vegan', Colors.green),
-                        if (product.category?.toLowerCase().contains(
-                              'gluten',
-                            ) ??
-                            false)
-                          _buildBadge('Gluten Free', Colors.blue),
-                        if (product.category?.toLowerCase().contains(
-                              'organic',
-                            ) ??
-                            false)
-                          _buildBadge('Organic', Colors.orange),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${product.stockQuantity} disponibles',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -272,6 +284,20 @@ class ProductCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Category
+                  if (product.category != null)
+                    Text(
+                      product.category!.name.toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+
+                  const SizedBox(height: 4),
+
                   // Product name
                   Text(
                     product.name,
@@ -304,21 +330,22 @@ class ProductCard extends StatelessWidget {
                   // Add to cart button
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: product.stockQuantity > 0 ? onTap : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             product.stockQuantity > 0
-                                ? Colors.pink.shade600
-                                : Colors.grey,
+                                ? Colors.black
+                                : Colors.grey.shade400,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(100),
                         ),
                         elevation: 0,
                       ),
-                      child: Text(
+                      icon: const Icon(Icons.shopping_cart, size: 18),
+                      label: Text(
                         product.stockQuantity > 0
                             ? 'Agregar al carrito'
                             : 'Sin stock',
@@ -343,24 +370,6 @@ class ProductCard extends StatelessWidget {
       color: Colors.grey.shade200,
       child: const Center(
         child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
-      ),
-    );
-  }
-
-  Widget _buildBadge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }

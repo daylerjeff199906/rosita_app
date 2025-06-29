@@ -126,12 +126,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Iniciar sesión',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                            const Center(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Iniciar sesión',
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Ingrese su email y contraseña para iniciar',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -149,29 +163,30 @@ class _LoginScreenState extends State<LoginScreen> {
                               obscure: true,
                             ),
                             const SizedBox(height: 30),
-                            Center(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 40,
-                                    vertical: 12,
+                                    vertical: 16,
                                   ),
-                                  side: const BorderSide(color: Colors.white),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
                                   ),
+                                  backgroundColor: Colors.white,
                                 ),
                                 onPressed: _isLoading ? null : _onSignInPressed,
                                 child:
                                     _isLoading
                                         ? const CircularProgressIndicator(
-                                          color: Colors.white,
+                                          color: Color(0xFFFF4F8B),
                                         )
                                         : const Text(
                                           'Ingresar',
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: Color(0xFFFF4F8B),
                                             fontSize: 16,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
                               ),
