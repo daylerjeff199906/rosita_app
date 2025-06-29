@@ -87,6 +87,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     // Redirigir según estado de autenticación
+    print('Estado de autenticación: ${_supabase.auth.currentSession?.user.email ?? "No autenticado"}');
+    debugPrint(
+      'Redirigiendo a ${_supabase.auth.currentSession == null ? "LoginScreen" : "HomeScreen"}',
+    );
     return _supabase.auth.currentSession == null
         ? const LoginScreen()
         : const HomeScreen();

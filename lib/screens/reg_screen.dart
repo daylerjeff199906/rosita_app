@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:rositas_appk/screens/login_screen.dart';
-import 'package:rositas_appk/data/user_data.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 class RegScreen extends StatefulWidget {
   const RegScreen({super.key});
@@ -13,6 +15,7 @@ class _RegScreenState extends State<RegScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,7 +25,7 @@ class _RegScreenState extends State<RegScreen> {
     super.dispose();
   }
 
-  void _onNextPressed() {
+  Future<void> _onNextPressed() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -43,15 +46,56 @@ class _RegScreenState extends State<RegScreen> {
       return;
     }
 
-    // Guardamos los datos en memoria para validar después en login
-    UserData.email = email;
-    UserData.password = password;
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La contraseña debe tener al menos 6 caracteres'),
+        ),
+      );
+      return;
+    }
 
-    // Ir a la pantalla de Login
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'full_name': name},
+      );
+
+      if (mounted) {
+        if (response.user?.emailConfirmedAt != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Por favor verifica tu correo electrónico'),
+            ),
+          );
+          Navigator.pop(context);
+        }
+      }
+    } on AuthException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Error al registrarse')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -148,14 +192,19 @@ class _RegScreenState extends State<RegScreen> {
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                               ),
-                              onPressed: _onNextPressed,
-                              child: const Text(
-                                'Siguiente',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
+                              onPressed: _isLoading ? null : _onNextPressed,
+                              child:
+                                  _isLoading
+                                      ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      )
+                                      : const Text(
+                                        'Siguiente',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                             ),
                           ),
                         ],
