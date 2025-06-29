@@ -305,9 +305,12 @@ class ProductCard extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: onTap,
+                      onPressed: product.stockQuantity > 0 ? onTap : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink.shade600,
+                        backgroundColor:
+                            product.stockQuantity > 0
+                                ? Colors.pink.shade600
+                                : Colors.grey,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(
@@ -315,9 +318,11 @@ class ProductCard extends StatelessWidget {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Agregar al carrito',
-                        style: TextStyle(
+                      child: Text(
+                        product.stockQuantity > 0
+                            ? 'Agregar al carrito'
+                            : 'Sin stock',
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),

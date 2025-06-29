@@ -1,5 +1,6 @@
 // lib/routes.dart
 import 'package:flutter/material.dart';
+import 'package:rositas_appk/screens/cart_screen.dart';
 import 'package:rositas_appk/screens/favorites_screen.dart';
 import 'package:rositas_appk/screens/login_screen.dart';
 import 'package:rositas_appk/screens/products_screen.dart';
@@ -17,6 +18,7 @@ class AppRoutes {
   static const String favorites = '/favorites';
   static const String settings = '/settings';
   static const String category = '/category';
+  static const String cart = '/cart';
   static const String login = '/login';
   static const String productDetail = '/productDetail';
 
@@ -36,6 +38,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const FavoritesScreen());
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
+      case cart:
+        return MaterialPageRoute(builder: (_) => const CartScreen());
       default:
         return MaterialPageRoute(
           builder:

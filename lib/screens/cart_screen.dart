@@ -12,10 +12,15 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   double get _totalPrice {
     return UserData.cart.fold(
-      0, 
+      0,
       (sum, item) => sum + (item.product.price * item.quantity),
     );
   }
+
+  double get _discount => 399;
+  double get _deliveryFee => 0;
+
+  double get _subTotal => _totalPrice - _discount + _deliveryFee;
 
   void _removeItem(int index) {
     setState(() {
@@ -40,39 +45,42 @@ class _CartScreenState extends State<CartScreen> {
         title: const Text('Carrito de compras'),
         backgroundColor: Colors.pink,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: UserData.cart.isEmpty
-                ? const Center(
-                    child: Text('Tu carrito está vacío'),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: UserData.cart.length,
-                    itemBuilder: (context, index) {
-                      final item = UserData.cart[index];
-                      return _buildCartItem(item, index);
-                    },
+      body:
+          UserData.cart.isEmpty
+              ? const Center(child: Text('Tu carrito está vacío'))
+              : Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: UserData.cart.length,
+                      itemBuilder: (context, index) {
+                        final item = UserData.cart[index];
+                        return _buildCartItem(item, index);
+                      },
+                    ),
                   ),
-          ),
-          if (UserData.cart.isNotEmpty) _buildTotalSection(),
-        ],
-      ),
+                  _buildTotalSection(),
+                ],
+              ),
     );
   }
 
   Widget _buildCartItem(CartItem item, int index) {
     return Card(
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                item.product.imageUrl ?? 'assets/images/placeholder.png',
+              child: Image.network(
+                item.product.imageUrl ??
+                    'https://via.placeholder.com/80x80.png?text=Sin+Imagen',
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
@@ -85,30 +93,53 @@ class _CartScreenState extends State<CartScreen> {
                 children: [
                   Text(
                     item.product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                  Text('\$${item.product.price.toStringAsFixed(2)}'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'S/ ${item.product.price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.pink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Total: S/ ${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                 ],
               ),
             ),
-            Row(
+            Column(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.remove),
-                  onPressed: () => _updateQuantity(
-                    index, item.quantity - 1),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove, size: 20),
+                      onPressed:
+                          () => _updateQuantity(index, item.quantity - 1),
+                    ),
+                    Text(
+                      '${item.quantity}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 20),
+                      onPressed:
+                          () => _updateQuantity(index, item.quantity + 1),
+                    ),
+                  ],
                 ),
-                Text('${item.quantity}'),
                 IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _updateQuantity(
-                    index, item.quantity + 1),
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _removeItem(index),
                 ),
               ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _removeItem(index),
             ),
           ],
         ),
@@ -125,29 +156,24 @@ class _CartScreenState extends State<CartScreen> {
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '\$${_totalPrice.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.pink,
-                ),
-              ),
-            ],
+          _buildTotalRow('Total', _totalPrice),
+          const SizedBox(height: 4),
+          _buildTotalRow('Descuento', -_discount),
+          const SizedBox(height: 4),
+          _buildTotalRow('Delivery', _deliveryFee),
+          const Divider(height: 20, thickness: 1),
+          _buildTotalRow(
+            'Sub Total',
+            _subTotal,
+            bold: true,
+            color: Colors.pink,
           ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.pink,
+                backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -156,19 +182,45 @@ class _CartScreenState extends State<CartScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const CheckoutScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const CheckoutScreen()),
                 );
               },
-              child: const Text(
-                'Proceder al pago',
-                style: TextStyle(fontSize: 18),
+              child: Text(
+                'Continuar (S/ ${_subTotal.toStringAsFixed(2)})',
+                style: const TextStyle(fontSize: 18, color: Colors.white),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTotalRow(
+    String label,
+    double amount, {
+    bool bold = false,
+    Color? color,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          '${amount < 0 ? '-' : ''}S/ ${amount.abs().toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            color: color ?? Colors.black,
+          ),
+        ),
+      ],
     );
   }
 }
